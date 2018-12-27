@@ -1,6 +1,6 @@
 ---
 title: "Chapter 2: Fixed Income Securities"
-output: html_notebook
+output: rmarkdown::github_document
 ---
 ## Yield to maturity
 ```{r}
