@@ -3,3 +3,5 @@ env/
 *.DS_Store
 *.RData
 *.Rhistory
+.Rhistory
+.DS_Store
