@@ -1,0 +1,241 @@
+---
+title: "Chapter 3:Exploratory Data Analysis"
+output: html_notebook
+---
+
+## Load DM/Dollar exchange rate
+
+```{r}
+data(Garch, package = "Ecdat")
+dm = Garch$dm
+diffdm = diff(dm)
+n = length(diffdm)
+year_dm = 1980 + (1:n)*(1987.5 - 1980)/n
+plot(year_dm, diffdm, type="l")
+```
+
+## European Stock Indices
+
+```{r}
+data(EuStockMarkets)
+mode(EuStockMarkets)
+class(EuStockMarkets)
+plot(EuStockMarkets)
+```
+
+## Log return European Stock Indice
+
+```{r}
+logR = diff(log(EuStockMarkets))
+plot(logR)
+```
+
+## In other way to plot this data like data frame:
+
+```{r}
+plot(as.data.frame(logR))
+```
+
+## Normal plot and test each for normality using the Shapiro-Wilk test
+
+```{r}
+par(mfrow=c(2,2))
+for (i in colnames(logR))
+{
+  qqnorm(logR[,i], datax = T, main=i)
+  qqline(logR[,i], datax = T)
+  print(shapiro.test(logR[,i]))
+}
+```
+
+- From QQ-Plot: 
+    - Four series have the marginal distribution symmetric but
+    - lighter tailed distribution: Concave to Convex
+- Test Shapiro with P value ~= 0 => rejet null hypothese => nonnormal distribution
+
+### Creates t-plots with 1, 4, 6, 10, 20, and 30 degrees of freedom and DAX indices 
+
+```{r}
+n = dim(logR)[1]
+q_grid = (1:n)/(n+1)
+df_grid = c(1,4,6,10,20,30)
+index.names = dimnames(logR)[[2]]
+cat(index.names)
+for (i in 1:4)
+{
+  par(mfrow=c(3,2))
+  for (df in df_grid)
+  {
+    qqplot(logR[,i], qt(q_grid, df), main=paste(index.names[i], ", df = ", df))
+    abline(lm(qt(c(0.25,0.75), df=df)~quantile(logR[,i], c(0.25,0.75))))
+  }
+}
+```
+## Campare plot of kde, t-distribution and normal distribution of DAX indice
+
+```{r}
+library(fGarch)
+x = seq(-0.1,0.1,0.001)
+par(mfrow=c(1,1))
+df = 4
+adjust = 1.4
+cat(sqrt(df/(df-2))/qt(0.75, df))
+mad_t = mad(logR[,"DAX"], constant = sqrt(df/(df-2))/qt(0.75, df))
+# density plot
+plot(density(logR[,1], adjust = adjust), lwd=2, ylim=c(0,60), main = "DAX indices")
+# t-plot
+lines(x, dstd(x, mean=median(logR[,1]), sd=mad_t, nu=df), lty=5, lwd=2, col="red")
+# normal plot
+lines(x, dnorm(x, mean=mean(logR[,1]), sd=sd(logR[,1])), lty=3, lwd=4, col="blue")
+legend("topleft", c(paste("KDE with adjust = ", adjust), paste("t: df=", df), "normal"), lwd=c(2,2,4), lty=c(1,5,3), col=c("black", "red", "blue"))
+```
+
+```{r}
+# the bandwidth used par defaut
+bw_defaut = bw.nrd0(logR[,1])
+cat("bw default: ",bw_defaut)
+# kernel used by defaut is gaussian
+# bandwidth modify by adjust
+adj = 3/2
+new_bw = bw_defaut*adj
+cat("\nnew bandwidth: ",new_bw)
+```
+
+## Campare plot of kde, t-distribution and normal distribution of CAC indice:
+
+```{r}
+library(fGarch)
+x = seq(-0.1,0.1,0.001)
+par(mfrow=c(1,1))
+df = 6
+adjust = 1.6
+cat(sqrt(df/(df-2))/qt(0.75, df))
+mad_t = mad(logR[,3], constant = sqrt(df/(df-2))/qt(0.75, df))
+# density plot
+plot(density(logR[,3], adjust = adjust), lwd=2, ylim=c(0,60), main = paste("CAC indice"))
+# t-plot
+lines(x, dstd(x, mean=median(logR[,3]), sd=mad_t, nu=df), lty=5, lwd=2, col="red")
+# normal plot
+lines(x, dnorm(x, mean=mean(logR[,3]), sd=sd(logR[,3])), lty=3, lwd=4, col="blue")
+legend("topleft", c(paste("KDE with adjust = ", adjust), paste("t: df=", df), "normal"), lwd=c(2,2,4), lty=c(1,5,3), col=c("black", "red", "blue"))
+```
+
+# McDonald's Price and Return:
+
+Daily stock prices and returns of McDonald's Corporation (MCD) over period Jan-4-10 to Sep-5-14
+
+```{r}
+setwd("~/dev/DataFinancialAnalyst")
+MC_data = read.csv("datasets/MCD_PriceDaily.csv", header = TRUE)
+head(MC_data)
+MC_price = MC_data[,7]
+plot(MC_price, type="l", lwd=2)
+```
+- This price series is not stationary because we can see that line go up over time and it have incease tendance, maybe it have a cycle saisonary but it is not stationary.
+
+- Transform the prices into log returns call LogRet, plot it and reponse question precedent
+
+```{r}
+LogRet = diff(log(MC_price))
+plot(LogRet, type="l", lwd=2, col="blue")
+legend("topleft", "Log returns", lty = 1, col="blue")
+```
+## Histogram with 80 bins
+```{r}
+hist(LogRet, breaks=80, freq = F)
+```
+
+## Normal plot of LogRet
+```{r}
+qqnorm(LogRet, datax=T, main="Normal Q-Q Plot", ylab = "LogRet")
+qqline(LogRet, datax=T)
+```
+- `LogRet` have Normal QQ Plot from convex to concave, that is mean this series got heavier-tailed distribution
+
+- After saw Histograme plot and Normal QQ plot, we can say that althought Log return of daily prices McDonal have sysmetric distribution but it have heavier-tailed distribution and it have not straight line in QQ plot. So, we may conclude that this series is not normal distribution
+
+## Shapiro - Wilk test normal distribution
+```{r}
+shapiro.test(LogRet)
+```
+- Also that the Shapiro - Wilk test have P-value = 0 to reject null hypothese. So this test comfirm that LogRet is not normality
+
+# Exercises:
+
+## 1:
+- load data ford.csv, it contains 2000 daily Ford returns from January 2 1984 to December 31 1991
+```{r}
+setwd("~/dev/DataFinancialAnalyst")
+ford = read.csv("datasets/ford.csv", header = T)
+head(ford)
+ford_R = ford[,3]
+```
+```{r}
+plot(ford_R, main="Ford's Returns", xlab="periods", ylab="returns", type="l")
+```
+```{r}
+ind = which(ford_R == ford_R[ford_R < -0.15])
+#cat("date have anormaly data: ", ford[ind,])
+ford[ind,]
+```
+
+
+- find the sample mean, median, standard deviation of Ford returns
+```{r}
+mean_r = mean(ford_R)
+median_r = median(ford_R)
+sd_r = sd(ford_R)
+cat("sample mean: ", mean_r)
+cat("\nsample median: ", median_r)
+cat("\nsample standard deviation: ", sd_r)
+```
+
+- Do the normal QQ plot of Ford return
+```{r}
+qqnorm(ford_R, datax=T, main="Normal QQ plot of Ford's returns", ylab="Ford's returns")
+qqline(ford_R, datax=T, col="red")
+```
+- Figure above show us that Ford's returns distribution have heavy tail distribution as we saw on the top and bottom of scatter plot, this distribution have one left heavier tail than other right. It means Ford's return is not normality.
+- Shapiro - Wilk test normality
+```{r}
+result = shapiro.test(ford_R)
+cat("P-value: ",result$p.value)
+```
+- with this P value we can reject null hypothese with 95% confidential
+
+## t-plot of Ford's Returns
+```{r}
+grid_df = c(6,6.5,7,8,10,20)
+n = length(ford_R)
+q_grid = (1:n)/(n+1)
+par(mfrow=c(3,2))
+for (df in grid_df)
+{
+  qqplot(ford_R, qt(q_grid, df), main = paste("t-distribution with df = ", df), xlab="Ford's Returns")
+  qqline(ford_R, datax = T)
+}
+```
+- After modify grid of degree of freedom, i found df = 6.5 of t-distribution best fitting Ford's Returns
+- In all of case, any of value df, we saw that data point of Black Friday 19 Oct 1987 was ignored, so i think that this data point maybe ignore out of data when looking best choices of df
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
